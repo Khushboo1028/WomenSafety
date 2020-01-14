@@ -37,11 +37,12 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements ShakeDetector.Listener {
+public class MainActivity extends AppCompatActivity implements AccelerometerListener {
 
     public static final String TAG = "MainActivity";
     public static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 87;
     public static final int MY_PERMISSIONS_REQUEST_COARSE_LOCATION = 18;
+    public static final int MY_PERMISSIONS_REQUEST_FINE_LOCATION = 69;
 
     RelativeLayout layout_police,layout_register_yourself,layout_register_guardian,layout_instructions, layout_view_registered;
     TextView tv_police_station;
@@ -65,9 +66,9 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         DefaultTextConfig defaultTextConfig = new DefaultTextConfig();
         defaultTextConfig.adjustFontScale(getResources().getConfiguration(), MainActivity.this);
 
-        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        ShakeDetector sd = new ShakeDetector(this);
-        sd.start(sensorManager);
+//        SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+//        ShakeDetector sd = new ShakeDetector(this);
+//        sd.start(sensorManager);
 
         setContentView(R.layout.activity_main);
 
@@ -82,20 +83,45 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
 
         init();
 
+        //Asking location permission in start so sms permission can be asked later
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+            } else {
+                ActivityCompat.requestPermissions(MainActivity.this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_FINE_LOCATION);
+
+            }
+        }
+
+
         layout_police.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                    if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+//                            Manifest.permission.ACCESS_COARSE_LOCATION)) {
+//
+//                    } else {
+//                        ActivityCompat.requestPermissions(MainActivity.this,
+//                                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+//                                MY_PERMISSIONS_REQUEST_COARSE_LOCATION);
+//
+//                    }
+//                }
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
-                            Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                            Manifest.permission.ACCESS_FINE_LOCATION)) {
 
                     } else {
                         ActivityCompat.requestPermissions(MainActivity.this,
-                                new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                                MY_PERMISSIONS_REQUEST_COARSE_LOCATION);
+                                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                MY_PERMISSIONS_REQUEST_FINE_LOCATION);
 
                     }
-                }else{
+                } else{
                     locationTrack = new LocationTrack(MainActivity.this);
 
                     if (locationTrack.canGetLocation()) {
@@ -159,37 +185,6 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
         });
     }
 
-    @Override
-    public void hearShake() {
-
-        Toast.makeText(this, "Shake Detected", Toast.LENGTH_SHORT).show();
-        Log.i(TAG,"Shake detected");
-
-            layout_police.performClick();
-            try {
-                if(locationTrack == null){
-                    locationTrack = new LocationTrack(getApplicationContext());
-                }
-                latitude = locationTrack.getLatitude();
-                longitude = locationTrack.getLongitude();
-                Thread.sleep(2000);
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-        if(guardianDataFound && guardianArrayList.size()!=0){
-
-            for(int i=0;i<guardianArrayList.size();i++) {
-                sendSMSMessage("+91"+guardianArrayList.get(i).getPhone());
-            }
-        }
-        else {
-            Toast.makeText(getApplicationContext(),"No Guardian Registered. Please follow instructions",Toast.LENGTH_SHORT).show();
-        }
-
-
-    }
 
     private void init(){
         layout_police = (RelativeLayout) findViewById(R.id.layout_police);
@@ -204,6 +199,44 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
 
         myDbGuardians = new DatabaseHelperGuardians(getApplicationContext());
         myDbSelf=new DatabaseHelperSelf(getApplicationContext());
+
+    }
+
+    @Override
+    public void onAccelerationChanged(float x, float y, float z) {
+
+        //Auto Generated Method
+    }
+
+    @Override
+    public void onShake(float force) {
+
+        Toast.makeText(this, "Shake Detected", Toast.LENGTH_SHORT).show();
+        Log.i(TAG,"Shake detected");
+
+
+        try {
+            layout_police.performClick();
+            if(locationTrack == null){
+                locationTrack = new LocationTrack(getApplicationContext());
+            }
+            latitude = locationTrack.getLatitude();
+            longitude = locationTrack.getLongitude();
+            Thread.sleep(2000);
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if(guardianDataFound && guardianArrayList.size()!=0){
+
+            for(int i=0;i<guardianArrayList.size();i++) {
+                sendSMSMessage("+91"+guardianArrayList.get(i).getPhone());
+            }
+        }
+        else {
+            Toast.makeText(getApplicationContext(),"No Guardian Registered. Please follow instructions",Toast.LENGTH_SHORT).show();
+        }
 
     }
 
@@ -366,7 +399,7 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
             Log.i(TAG,"Sending message to "+phoneNo);
             SmsManager smsManager = SmsManager.getDefault();
             smsManager.sendTextMessage(phoneNo, null, message, null, null);
-            Toast.makeText(getApplicationContext(), "SMS sent.",
+            Toast.makeText(getApplicationContext(), "Messages sent.",
                     Toast.LENGTH_LONG).show();
         }
     }
@@ -390,7 +423,7 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
                 break;
             }
 
-            case  MY_PERMISSIONS_REQUEST_COARSE_LOCATION:{
+            case  MY_PERMISSIONS_REQUEST_FINE_LOCATION:{
 
                 if (grantResults!=null && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
@@ -420,13 +453,52 @@ public class MainActivity extends AppCompatActivity implements ShakeDetector.Lis
 
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+
+
+        //Check device supported Accelerometer sensor or not
+        if (AccelerometerManager.isSupported(this)) {
+
+            //Start Accelerometer Listening
+            AccelerometerManager.startListening(this);
+        }
+
+        viewRegisteredData();
+    }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        viewRegisteredData();
+    public void onStop() {
+        super.onStop();
+
+        //Check device supported Accelerometer senssor or not
+        if (AccelerometerManager.isListening()) {
+
+            //Start Accelerometer Listening
+            AccelerometerManager.stopListening();
+
+
+        }
 
     }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.i("Sensor", "Service  distroy");
+
+        //Check device supported Accelerometer senssor or not
+        if (AccelerometerManager.isListening()) {
+
+            //Start Accelerometer Listening
+            AccelerometerManager.stopListening();
+
+        }
+
+    }
+
+
 
 
 
